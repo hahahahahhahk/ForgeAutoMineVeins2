@@ -1,6 +1,7 @@
--- Forgotten Kingdom Basalt Veins Auto Mine Script (FULLY FIXED & COMPLETE)
--- Keyless, Mobile/PC Compatible, Draggable Transparent GUI
--- Host on GitHub raw: loadstring(game:HttpGet("https://raw.githubusercontent.com/hahahahahhahk/ForgeAutoMineVeins2/main/Fahhh"))()
+-- FIXED: The Forge [BETA] Basalt Veins Auto Mine Script
+-- Adapted from your original - Now searches workspace.Rocks/Ores OR direct children for Basalt Veins
+-- Keyless, Delta/Mobile/PC Compatible, Draggable GUI, 1000 stud range
+-- Paste FULL code into Delta & execute!
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -15,17 +16,18 @@ end
 
 local char, humanoid = waitForChar()
 
--- GUI Creation
+-- GUI Creation (More visible on mobile)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BasaltVeinsAutoMine"
 screenGui.ResetOnSpawn = false
+screenGui.DisplayOrder = 100  -- Higher priority
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 140)
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -70)
-mainFrame.BackgroundColor3 = Color3.new(0.05, 0.05, 0.15)
-mainFrame.BackgroundTransparency = 0.3
+mainFrame.Size = UDim2.new(0, 350, 0, 160)
+mainFrame.Position = UDim2.new(0.5, -175, 0.3, 0)  -- Better mobile position
+mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.2)
+mainFrame.BackgroundTransparency = 0.2  -- Less transparent
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
@@ -35,6 +37,193 @@ uicorner.Parent = mainFrame
 
 -- Title
 local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -30, 0, 35)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "The Forge [BETA] Basalt Veins"
+title.TextColor3 = Color3.new(0, 1, 1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
+
+-- Close Button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -30, 0, 2)
+closeBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextScaled = true
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = mainFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeBtn
+
+-- Toggle Button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0.92, 0, 0, 50)
+toggleBtn.Position = UDim2.new(0.04, 0, 0, 45)
+toggleBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+toggleBtn.Text = "Auto Mine: OFF - CLICK TO START"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleBtn
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0.92, 0, 0, 30)
+statusLabel.Position = UDim2.new(0.04, 0, 0, 105)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Ready - Go near Basalt Veins & equip pickaxe!"
+statusLabel.TextColor3 = Color3.new(0.8, 1, 0.8)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = mainFrame
+
+-- Draggable (Mobile/PC)
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateInput(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- Pickaxe (Any tool, prefers equipped)
+local function getPickaxe()
+    local equipped = char:FindFirstChildOfClass("Tool")
+    if equipped then return equipped end
+    for _, tool in pairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then return tool end
+    end
+    return nil
+end
+
+-- FIXED: Find Nearest Basalt Vein (tries Rocks/Ores folder OR workspace children)
+local function getNearestRock()
+    local rocksFolder = workspace:FindFirstChild("Rocks") or workspace:FindFirstChild("Ores") or workspace:FindFirstChild("Map") or workspace
+    local nearestRock, shortestDist = nil, math.huge
+    local playerPos = char.HumanoidRootPart.Position
+    
+    for _, rock in pairs(rocksFolder:GetChildren()) do
+        local rockName = string.lower(rock.Name)
+        if rock:IsA("Model") and rock:GetPivot() and string.find(rockName, "basalt") and string.find(rockName, "vein") then
+            local rockPos = rock:GetPivot().Position
+            local dist = (rockPos - playerPos).Magnitude
+            if dist < shortestDist and dist < 1000 then  -- Increased range
+                shortestDist = dist
+                nearestRock = rock
+            end
+        end
+    end
+    
+    if nearestRock then
+        statusLabel.Text = string.format("Mining %s (%.0f studs)", nearestRock.Name, shortestDist)
+        statusLabel.TextColor3 = Color3.new(0.2, 1, 0.2)
+        return nearestRock
+    else
+        statusLabel.Text = "No Basalt Veins nearby! (1000 stud range)"
+        statusLabel.TextColor3 = Color3.new(1, 0.8, 0.2)
+        return nil
+    end
+end
+
+-- Auto Mine Loop
+local autoMineEnabled = false
+
+local function toggleAutoMine()
+    autoMineEnabled = not autoMineEnabled
+    
+    if autoMineEnabled then
+        toggleBtn.Text = "Auto Mine: ON"
+        toggleBtn.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+        statusLabel.Text = "Started! Auto-equip & mining..."
+        statusLabel.TextColor3 = Color3.new(0.2, 1, 0.2)
+        
+        task.spawn(function()
+            while autoMineEnabled do
+                pcall(function()
+                    char, humanoid = waitForChar()
+                    
+                    local pickaxe = getPickaxe()
+                    if pickaxe and pickaxe.Parent ~= char then
+                        humanoid:EquipTool(pickaxe)
+                        task.wait(0.5)
+                    end
+                    
+                    pickaxe = getPickaxe()
+                    if pickaxe and pickaxe.Parent == char then
+                        local rock = getNearestRock()
+                        if rock then
+                            local pivotCF = rock:GetPivot()
+                            local size = rock:GetExtentsSize()
+                            local lowestY = pivotCF.Position.Y - (size.Y / 2)
+                            local mineY = lowestY - 7
+                            local relativeY = mineY - pivotCF.Position.Y
+                            
+                            char.HumanoidRootPart.CFrame = pivotCF * CFrame.new(0, relativeY, -6) * CFrame.Angles(0, math.pi, 0)
+                            task.wait(0.1)
+                            pickaxe:Activate()
+                        end
+                    else
+                        statusLabel.Text = "No pickaxe! Equip one manually"
+                        statusLabel.TextColor3 = Color3.new(1, 0.4, 0.4)
+                    end
+                end)
+                task.wait(0.4)  -- Fast mining
+            end
+        end)
+    else
+        toggleBtn.Text = "Auto Mine: OFF"
+        toggleBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+        statusLabel.Text = "Stopped - Click to resume"
+        statusLabel.TextColor3 = Color3.new(1, 0.6, 0.6)
+    end
+end
+
+-- Connections
+toggleBtn.MouseButton1Click:Connect(toggleAutoMine)
+closeBtn.MouseButton1Click:Connect(function()
+    autoMineEnabled = false
+    screenGui:Destroy()
+end)
+
+-- Respawn handler
+player.CharacterAdded:Connect(function()
+    task.wait(2)
+    char, humanoid = waitForChar()
+end)
+
+print("FIXED The Forge Basalt Veins Auto Mine LOADED! GUI ready - Toggle ON!")local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -30, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 0)
 title.BackgroundTransparency = 1
