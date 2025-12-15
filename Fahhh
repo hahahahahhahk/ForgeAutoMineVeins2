@@ -1,8 +1,8 @@
--- Forgotten Kingdom Basalt Veins Auto Mine Script (FIXED: Better Pickaxe Detection + Bounding Box)
--- Keyless, Mobile/PC Compatible, Draggable GUI
+-- Forgotten Kingdom Basalt Veins Auto Mine Script (FULLY FIXED & COMPLETE)
+-- Keyless, Mobile/PC Compatible, Draggable Transparent GUI
+-- Host on GitHub raw: loadstring(game:HttpGet("https://raw.githubusercontent.com/hahahahahhahk/ForgeAutoMineVeins2/main/Fahhh"))()
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
@@ -15,7 +15,7 @@ end
 
 local char, humanoid = waitForChar()
 
--- GUI (same as yours, minor polish)
+-- GUI Creation
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BasaltVeinsAutoMine"
 screenGui.ResetOnSpawn = false
@@ -33,8 +33,10 @@ local uicorner = Instance.new("UICorner")
 uicorner.CornerRadius = UDim.new(0, 12)
 uicorner.Parent = mainFrame
 
+-- Title
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -30, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "⛏️ Forgotten Kingdom Basalt Veins"
 title.TextColor3 = Color3.new(1, 1, 1)
@@ -42,6 +44,7 @@ title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
 
+-- Close Button
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 25, 0, 25)
 closeBtn.Position = UDim2.new(1, -28, 0, 2)
@@ -50,8 +53,14 @@ closeBtn.BackgroundTransparency = 0.2
 closeBtn.Text = "✕"
 closeBtn.TextColor3 = Color3.new(1, 1, 1)
 closeBtn.TextScaled = true
+closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = mainFrame
 
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeBtn
+
+-- Toggle Button
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 45)
 toggleBtn.Position = UDim2.new(0.05, 0, 0, 40)
@@ -59,35 +68,168 @@ toggleBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
 toggleBtn.Text = "Auto Mine: OFF"
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.Parent = mainFrame
 
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 10)
+toggleCorner.Parent = toggleBtn
+
+-- Status Label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 25)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 90)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Ready"
+statusLabel.Text = "Ready - Go to Ruined Cave"
 statusLabel.TextColor3 = Color3.new(0.8, 1, 0.8)
 statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Parent = mainFrame
 
--- Draggable code (same as yours) ...
+-- Draggable GUI (works on Mobile & PC)
+local dragging = false
+local dragStart = nil
+local startPos = nil
 
--- IMPROVED Pickaxe Detection
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateInput(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- Pickaxe Detection (detects Arcane Pickaxe automatically)
 local function getPickaxe()
-    -- First check equipped tool (most reliable)
     local equipped = char:FindFirstChildOfClass("Tool")
     if equipped then return equipped end
-    
-    -- Then backpack
     for _, tool in pairs(player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then return tool end  -- Any Tool = pickaxe in this game
+        if tool:IsA("Tool") then return tool end
     end
     return nil
 end
 
--- Rest same, but FIXED bounding box
-local function getNearestRock() -- same as yours
-    -- ...
+-- Find Nearest Basalt Vein Only
+local function getNearestRock()
+    local rocksFolder = workspace:FindFirstChild("Rocks")
+    if not rocksFolder then
+        statusLabel.Text = "Rocks folder not found!"
+        statusLabel.TextColor3 = Color3.new(1, 0.4, 0.4)
+        return nil
+    end
+    
+    local nearestRock, shortestDist = nil, math.huge
+    local playerPos = char.HumanoidRootPart.Position
+    
+    for _, rock in pairs(rocksFolder:GetChildren()) do
+        local rockName = string.lower(rock.Name)
+        if rock:IsA("Model") and rock:GetPivot() and string.find(rockName, "basalt") and string.find(rockName, "vein") then
+            local rockPos = rock:GetPivot().Position
+            local dist = (rockPos - playerPos).Magnitude
+            if dist < shortestDist and dist < 500 then
+                shortestDist = dist
+                nearestRock = rock
+            end
+        end
+    end
+    
+    if nearestRock then
+        statusLabel.Text = string.format("Mining %s (%.0f studs)", nearestRock.Name, shortestDist)
+        statusLabel.TextColor3 = Color3.new(0.2, 1, 0.2)
+        return nearestRock
+    else
+        statusLabel.Text = "No Basalt Veins nearby! (500 stud range)"
+        statusLabel.TextColor3 = Color3.new(1, 0.8, 0.2)
+        return nil
+    end
+end
+
+-- Auto Mine Logic
+local autoMineEnabled = false
+
+local function toggleAutoMine()
+    autoMineEnabled = not autoMineEnabled
+    
+    if autoMineEnabled then
+        toggleBtn.Text = "Auto Mine: ON"
+        toggleBtn.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+        statusLabel.Text = "Started! Auto-equipping pickaxe..."
+        statusLabel.TextColor3 = Color3.new(0.2, 1, 0.2)
+        
+        task.spawn(function()
+            while autoMineEnabled do
+                pcall(function()
+                    char, humanoid = waitForChar()
+                    
+                    local pickaxe = getPickaxe()
+                    if pickaxe and pickaxe.Parent ~= char then
+                        humanoid:EquipTool(pickaxe)
+                        task.wait(0.6)
+                    end
+                    
+                    pickaxe = getPickaxe()
+                    if pickaxe and pickaxe.Parent == char then
+                        local rock = getNearestRock()
+                        if rock then
+                            local pivotCF = rock:GetPivot()
+                            local size = rock:GetExtentsSize()
+                            local lowestY = pivotCF.Position.Y - (size.Y / 2)
+                            local mineY = lowestY - 7.8
+                            local relativeY = mineY - pivotCF.Position.Y
+                            
+                            char.HumanoidRootPart.CFrame = pivotCF * CFrame.new(0, relativeY, -6) * CFrame.Angles(0, math.pi, 0)
+                            task.wait(0.15)
+                            pickaxe:Activate()
+                        end
+                    else
+                        statusLabel.Text = "No pickaxe found! Equip Arcane Pickaxe manually"
+                        statusLabel.TextColor3 = Color3.new(1, 0.4, 0.4)
+                    end
+                end)
+                task.wait(0.45)  -- Mining speed (lower = faster, but riskier)
+            end
+        end)
+    else
+        toggleBtn.Text = "Auto Mine: OFF"
+        toggleBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+        statusLabel.Text = "Stopped!"
+        statusLabel.TextColor3 = Color3.new(1, 0.6, 0.6)
+    end
+end
+
+-- Button Connections
+toggleBtn.MouseButton1Click:Connect(toggleAutoMine)
+
+closeBtn.MouseButton1Click:Connect(function()
+    autoMineEnabled = false
+    screenGui:Destroy()
+end)
+
+-- Handle Respawn
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    char, humanoid = waitForChar()
+end)
+
+print("🌋 Basalt Veins Auto Mine Fully Loaded! Toggle ON and farm!")    -- ...
 end
 
 local autoMineEnabled = false
