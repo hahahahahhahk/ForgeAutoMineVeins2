@@ -1,0 +1,142 @@
+-- Forgotten Kingdom Basalt Veins Auto Mine Script (FIXED: Better Pickaxe Detection + Bounding Box)
+-- Keyless, Mobile/PC Compatible, Draggable GUI
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local function waitForChar()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart", 10), char:WaitForChild("Humanoid")
+end
+
+local char, humanoid = waitForChar()
+
+-- GUI (same as yours, minor polish)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BasaltVeinsAutoMine"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 320, 0, 140)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -70)
+mainFrame.BackgroundColor3 = Color3.new(0.05, 0.05, 0.15)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local uicorner = Instance.new("UICorner")
+uicorner.CornerRadius = UDim.new(0, 12)
+uicorner.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -30, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "⛏️ Forgotten Kingdom Basalt Veins"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 25, 0, 25)
+closeBtn.Position = UDim2.new(1, -28, 0, 2)
+closeBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+closeBtn.BackgroundTransparency = 0.2
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextScaled = true
+closeBtn.Parent = mainFrame
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0.9, 0, 0, 45)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 40)
+toggleBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+toggleBtn.Text = "Auto Mine: OFF"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.TextScaled = true
+toggleBtn.Parent = mainFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 90)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Ready"
+statusLabel.TextColor3 = Color3.new(0.8, 1, 0.8)
+statusLabel.TextScaled = true
+statusLabel.Parent = mainFrame
+
+-- Draggable code (same as yours) ...
+
+-- IMPROVED Pickaxe Detection
+local function getPickaxe()
+    -- First check equipped tool (most reliable)
+    local equipped = char:FindFirstChildOfClass("Tool")
+    if equipped then return equipped end
+    
+    -- Then backpack
+    for _, tool in pairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then return tool end  -- Any Tool = pickaxe in this game
+    end
+    return nil
+end
+
+-- Rest same, but FIXED bounding box
+local function getNearestRock() -- same as yours
+    -- ...
+end
+
+local autoMineEnabled = false
+
+local function toggleAutoMine()
+    autoMineEnabled = not autoMineEnabled
+    if autoMineEnabled then
+        toggleBtn.Text = "Auto Mine: ON"
+        toggleBtn.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+        statusLabel.Text = "Started!"
+        
+        task.spawn(function()
+            while autoMineEnabled do
+                pcall(function()
+                    char, humanoid = waitForChar()
+                    local pickaxe = getPickaxe()
+                    if pickaxe and pickaxe.Parent ~= char then
+                        humanoid:EquipTool(pickaxe)
+                        task.wait(0.6)
+                    end
+                    
+                    pickaxe = getPickaxe()
+                    if pickaxe and pickaxe.Parent == char then
+                        local rock = getNearestRock()
+                        if rock then
+                            local pivotCF = rock:GetPivot()
+                            local size = rock:GetExtentsSize()  -- FIXED: Correct size
+                            if size then
+                                local lowestY = pivotCF.Position.Y - (size.Y / 2)
+                                local mineY = lowestY - 7.8
+                                local relativeY = mineY - pivotCF.Position.Y
+                                
+                                char.HumanoidRootPart.CFrame = pivotCF * CFrame.new(0, relativeY, -6) * CFrame.Angles(0, math.pi, 0)
+                                task.wait(0.15)
+                                pickaxe:Activate()
+                            end
+                        end
+                    else
+                        statusLabel.Text = "No pickaxe equipped! Equip Arcane Pickaxe"
+                    end
+                end)
+                task.wait(0.45)
+            end
+        end)
+    else
+        -- off code same
+    end
+end
+
+-- Connections same...
+
+print("Fixed Basalt Veins Auto Mine Loaded!")
